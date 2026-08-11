@@ -1,0 +1,26 @@
+{
+  "format": "cclink-markdown-resources",
+  "version": 1,
+  "document": "../0728-大脑是如何学习的-神经生物学给AI的启示.md",
+  "updatedAt": "2026-07-29T09:46:37.326Z",
+  "assets": [
+    {
+      "path": "illustration-01-1.png",
+      "mediaType": "image/png",
+      "size": 1015394,
+      "sha256": "0c4f7a8ba89b594c289fd5205bf34fbe6f70c58f978839b089ab44ba5d6a9bfa"
+    },
+    {
+      "path": "illustration-01-2.png",
+      "mediaType": "image/png",
+      "size": 1216916,
+      "sha256": "70ae5cd2eb7e6619ce6bf9f96dec7e5843d0de81729bc8f6ef191cd0002cf65b"
+    },
+    {
+      "path": "illustration-01.png",
+      "mediaType": "image/png",
+      "size": 1236065,
+      "sha256": "f38aea80865964f6283232d6cc9a067c83a0e04ff9c636369f80a2ce458a4f32"
+    }
+  ]
+}
