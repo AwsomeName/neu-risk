@@ -1,293 +1,75 @@
-# Hebbian 学习的现代实现 — 专题调研
+# Hebbian 学习的现代实现：方法与证据
 
-**调研日期**: 2026-07-26
-**专题范围**: Hebbian 学习在 2022-2025 年现代深度学习中的工程化实现
-**配套文件**: 《生物神经网络与人工神经网络交叉研究调研报告.md》第一章 1.1 节的深入展开
+修订日期：2026-09-09。定位：工程方法与结果的主记录。范围：重核旧项目涉及的代表工作，不声称穷尽领域或给出截至今天的 SOTA 排名。以下均为文献报告，本项目尚未复现。
 
-> **本次调研说明**: 本篇所有论文均带有 arXiv 编号或 DOI,所有 GitHub 仓库均为搜索核实存在的真实仓库。可按链接自行复核。这是和上一篇"概览报告"最大的不同——上一篇里部分论文标题/stars 数字可能是 AI 生成的,本篇尽量做到可追溯。
+## 1. 用独立维度组织方法
 
----
+旧版“五条路线”混合了规则、工程优化、训练组合和神经元类型。现在分别记录：
 
-## 引子:为什么要单独讲"现代实现"
+| 维度 | 例子 | 注意 |
+|---|---|---|
+| 可塑性规则 | Oja、BCM、STDP、竞争性更新 | 要看具体方程与状态 |
+| 竞争与稳定机制 | Hard/Soft-WTA、归一化、阈值适应 | 可与其他维度组合 |
+| 学习信息 | 本地活动、调制、误差反馈 | “局部”应明确相对哪个计算单元 |
+| 系统结构 | 卷积、循环、脉冲网络 | 卷积网络也可以使用脉冲单元 |
+| 训练流程 | 无监督特征+监督读出、端到端微调、外层规则搜索 | 各阶段成本均应记录 |
+| 工程实现 | 矩阵化、卷积化、批量聚合 | 加速不必意味着规则变化 |
 
-上一篇我们说过 Hebbian 的一句话本质:
+## 2. 代表工作及可保留的信息
 
-> **"Cells that fire together, wire together."** —— 一起放电的神经元,连接变强。
+### Miconi：用自动微分实现局部更新
 
-规则本身 1949 年就提出了,公式朴素到不能再朴素:
+Miconi 2021 的工作重点是构造梯度等于所需 Hebbian 更新的损失，以利用现代自动微分框架。调用梯度工具与依赖端到端任务误差不是同一件事；不能只看 `.backward()` 判断学习机制。[论文](https://arxiv.org/abs/2107.01729)，[作者代码](https://github.com/ThomasMiconi/HebbianCNNPyTorch)
 
-$$\Delta w = \eta \cdot x \cdot y$$
+旧文把 Miconi 与“三因子”直接绑定，缺乏更新规则依据，已撤回。其他研究中的同名复现配置也应与作者实现分开。
 
-听起来很美好——和大脑一样、局部、不需要标签。但几十年来它在工程上**一直打不过反向传播(backprop)**。原因有三个,必须先讲清楚,否则看不懂"现代实现"到底在解决什么:
+### SoftHebb：局部特征学习与竞争机制
 
+Journé 等的多层 SoftHebb 工作以局部特征学习配合附加线性分类器开展实验。引用时必须区分特征训练与分类头，不将整个分类流程称作完全无需监督。[ICLR 2023 对应版本](https://arxiv.org/abs/2209.11883v2)，[作者代码](https://github.com/NeuromorphicComputing/SoftHebb)
 
-| 病症           | 通俗解释                            | 后果         |
-| ------------ | ------------------------------- | ---------- |
-| **权重爆炸/饱和**  | $x$ 和 $y$ 只要都为正,$w$ 就一直涨,涨到天上去  | 网络发散,学不到东西 |
-| **没有深度信用分配** | 深层网络里,前面哪一层该为最终错误负责?Hebbian 不知道 | 训不动深层特征    |
-| **缺乏全局目标**   | 它只看"邻居在不在",不看"最终结果对不对"          | 学到的特征可能没用  |
+### FastHebb：加速 Hebbian 更新的计算
 
+FastHebb 通过更新聚合与矩阵化提高计算效率。2022 版和 2024 期刊版应分开记录；后者讨论 SWTA-FH、HPCA-FH，并扩展实验。其半监督流程不能缩写成“全网络只用 Hebbian”。[2022 版](https://arxiv.org/html/2207.03172v1)，[2024 期刊版](https://www.sciencedirect.com/science/article/pii/S0925231224006386)
 
-所以"现代实现"要回答的核心问题是:
+### Nimmo 与 Mondragón：组合机制与受控比较
 
-> **能不能既保留 Hebbian 的"局部、生物合理、无监督"优点,又让它在深层网络里真正能用,甚至逼近反向传播的性能?**
+该工作比较竞争、BCM 与侧抑制等配置，使用特征学习后监督训练分类头的流程。作者仓库可提供架构线索，但“某函数存在”不等于已确定某项成绩对应的全部配置。[2025 论文 v2](https://arxiv.org/html/2501.17266v2)
 
-2022-2025 年,这个问题有了实质性突破。下面是五条主要路线。
+### 外层搜索与可塑性
 
----
+Najarro 与 Risi 2020 搜索可塑性规则，并研究智能体从随机权重开始的适应。外层优化与部署时的内部更新必须分别说明；部署时无显式奖励，不等于整个规则发现过程没有任务选择压力。[NeurIPS 论文](https://proceedings.neurips.cc/paper/2020/hash/ee23e7ad9b473ad072d57aaa9b2a5222-Abstract.html)
 
-## 一、五条现代实现路线
+### 局部辅助目标
 
-### 路线 A:让 Hebbian 跑得快、跑得深 —— FastHebb
+SPHeRe 从 Hebbian/Oja 相关思路出发，但引入辅助非线性模块和结构保持目标。应把实际方法与背景规则、消融基线分开，不能将其效果概括为原始 Oja 或 BCM 的效果。[论文，尤其第 4.3 节](https://arxiv.org/html/2510.14810v2)
 
-**核心问题**: 原始 Hebbian 即使能跑,也慢得没法上 ImageNet 这种大数据集。
+### STDP 与代理梯度
 
-**代表工作**: **FastHebb** (Gabriele Lagani et al.)
+STDP 描述依赖时序的可塑性；代理梯度用于梯度训练中的脉冲非光滑问题。二者可以结合，但局部 STDP 并不必须通过代理梯度实现。[代理梯度论文](https://arxiv.org/abs/1901.09948)
 
-- 2022 年预印本: [arXiv:2207.03172](https://arxiv.org/abs/2207.03172) —— "FastHebb: Scaling Hebbian Training of Deep Neural Networks to ImageNet-Level"
-- 2024 年期刊版: *Neurocomputing* Vol. 595, p. 127867, [DOI:10.1016/j.neucom.2024.127867](https://www.sciencedirect.com/science/article/pii/S0925231224006386)
+## 3. 已核对来源的数字
 
-**关键结果**: 比此前的 Hebbian 方法(如 SoftHebb)训练**快 70 倍**,首次让 Hebbian 训练扩展到 ImageNet 级别。
+本表用于核对原稿，不用于跨论文排名。未填齐训练协议的条目不能用作严格比较。
 
-**怎么做到的**(工程优化,不是换算法):
+| 来源与版本 | 报告的结果 | 必须保留的条件与限制 |
+|---|---|---|
+| SoftHebb，ICLR 2023 对应 v2 | CIFAR-10 80.3% | 特征学习加线性分类器的整套结果；不是规则家族的统一水平；完整超参数尚未在本项目复现 |
+| Nimmo 与 Mondragón，2025 v2 | 特定 Hard-WTA 改进配置与 BP 对照均为约 75.2% | CIFAR-10；论文的 20 epoch 比较；最后一半测试 epoch 的平均准确率；不应与其他论文最佳单次结果直接相减 |
+| Miconi 2021 的结果，按 Nimmo 2025 引述 | 三层 CNN 在 CIFAR-10 上 64.6% | 这里标明是二次引述；原论文运行配置尚待绑定；不是人脸识别，也不是性能上限 |
+| FastHebb，2022 v1 | 最高约 50 倍加速 | 相对于所比较的旧 Hebbian 实现；对应该版网络和计时设置 |
+| FastHebb，2024 期刊版 | 最高约 70 倍加速 | 相应未采用 FH 优化的 Hebbian 版本；不是对所有 BP 或 SoftHebb 的速度保证 |
+| Gupta 等，2023 v4 | 摘要报告特定 Hebbian 设置约 5 epoch、BP 约 100 epoch 收敛 | 数据、精度和全流程成本尚未抽取齐全；只作为需进一步读表的线索，不据此声称同质量加速 |
 
-1. **合并更新步骤**: 把原本分散的权重更新合并成一次张量运算,吃满 GPU
-2. **半监督**: Hebbian 无监督学特征 + 少量标签微调
-3. **计算重排**: 避免重复的内存读写
+来源分别为上述方法段落及[Gupta 等论文](https://arxiv.org/abs/2212.04614v4)。精度差应用“百分点”表达；相对改进率需另给分母。epoch 不是时间，也不是能量。
 
-> **启示**: Hebbian 慢,很多时候不是算法本质慢,而是没人认真做过工程优化。FastHebb 的贡献恰恰是"把它当成正经系统来优化"。
+## 4. 当前可以支持的判断
 
----
+基本无约束相关性更新面临稳定性和分工问题；局部学习与竞争、监督读出、调制或外层优化可以形成不同系统。选定论文表明这类系统可以开展多层表征学习实验，但本项目不据此宣称其普遍优于或劣于端到端训练。
 
-### 路线 B:局部 + 全局 —— 三因子规则 (Three-Factor Rules)
+“局部”不自动推出低功耗，“稀疏”不自动推出可解释，“可在线更新”不自动推出不遗忘。各项优势都需要自己的评价协议。
 
-这是**理论上最重要**的一条线,直接回答"怎么给 Hebbian 加全局目标"。
+## 5. 复现前的最低信息
 
-**回顾两因子(原始 Hebbian)**:
+每项结果绑定论文版本、代码 commit、数据划分、预处理、全部训练阶段、标签比例、预算、分类头、随机种子、模型选择规则与统计方式。比较规则时控制架构等混杂因素；比较完整系统时记录完整成本。
 
-$$\Delta w = \eta \cdot \underbrace{x}*{\text{输入}} \cdot \underbrace{y}*{\text{输出}}$$
-
-只有 pre 和 post 两个因子,纯局部。
-
-**三因子规则**:
-
-$$\Delta w = \eta \cdot \underbrace{x \cdot y}*{\text{局部 Hebbian}} \cdot \underbrace{M}*{\text{全局调制信号}}$$
-
-第三个因子 $M$ 是一个**全局标量信号**,告诉每个突触:"这次活动整体上是好是坏?"
-
-**生物对应**: 大脑里的**神经调质**(多巴胺、乙酰胆碱、血清素)——它们是全局广播的化学信号,正好扮演 $M$ 的角色。一个神经元释放多巴胺,整个脑区都会接收到。
-
-**代表工作**:
-
-- **Information Bottleneck Hebbian** (Daruwalla, 2024) [Frontiers in Computational Neuroscience](https://www.frontiersin.org/journals/computational-neuroscience/articles/10.3389/fncom.2024.1240348/full):用一个辅助记忆网络产生全局信号,把跨样本的信息压进 Hebbian 更新
-- **Hebbian Learning with Global Direction** (2026 预印本, [arXiv:2601.21367](https://arxiv.org/html/2601.21367v1)):延续了"给 Hebbian 一个全局方向"的思路
-
-> **为什么重要**: 三因子规则是"既局部又全局"的折中——保留了 Hebbian 的生物合理性(突触只看本地信息 + 一个广播信号),又拿到了类似反传的全局指导。这是当前最被看好的"生物合理 + 可用"的范式。
-
----
-
-### 路线 C:经典规则的现代复活 —— Oja / BCM
-
-这两个是 1980 年代的经典 Hebbian 变体,2024-2025 年因为新论文重新火起来。它们专治"权重爆炸"。
-
-#### Oja's Rule —— 加个归一化,顺便做了 PCA
-
-$$\Delta w = \eta \cdot y \cdot (x - w \cdot y)$$
-
-后面那个 $-w \cdot y$ 是个"减自激"项,效果是**把权重长度拉回 1 附近**,不会爆炸。
-
-**神奇性质**: Oja 证明过,这个简单规则在数学上**等价于在线主成分分析(PCA)**——也就是说,它在无监督地提取数据的主要成分。
-
-**现代应用**: [NeurIPS 2025 论文](https://arxiv.org/html/2510.14810v1) "Low-Dimensional Structural Projection" 用 Oja 和 BCM 做现代无监督降维,说明这些经典规则在今天的 ML 里仍有竞争力。
-
-#### BCM Theory —— 滑动阈值,做出"选择性"
-
-$$\Delta w = \eta \cdot y \cdot (y - \theta_M) \cdot x$$
-
-其中 $\theta_M$ 是一个**随历史活动变化的阈值**:
-
-- 最近经常放电 → 阈值升高 → 更难再加强(防止过兴奋)
-- 最近很安静 → 阈值降低 → 容易加强(保持敏感)
-
-**生物对应**: 视觉皮层的**方位选择性**(orientation selectivity)——神经元对某个特定朝向的线条反应最强。BCM 能自发学出这种选择性。
-
-
-| 规则         | 解决的问题  | 数学等价   | 典型用途    |
-| ---------- | ------ | ------ | ------- |
-| 原始 Hebbian | —      | 无      | 仅作起点    |
-| **Oja**    | 权重爆炸   | 在线 PCA | 降维、特征提取 |
-| **BCM**    | 选择性、稳态 | 方位选择模型 | 感知学习    |
-
-
----
-
-### 路线 D:Hebbian + 反向传播 混合架构
-
-既然 Hebbian 训不动深层、Backprop 又不够"生物",那能不能**各取所长**?
-
-**典型做法**: 浅层用 Hebbian(无监督学特征),深层用 Backprop(有监督精调)。
-
-**代表实现**: [GabrieleLagani/HebbianLearning](https://github.com/GabrieleLagani/HebbianLearning) (PyTorch)
-
-- 支持每一层单独配置学习规则
-- 可以"第 1-3 层 Hebbian + 第 4-5 层 Backprop"
-- 在 CIFAR-10 上验证
-
-**相关论文**: "Hebbian Learning Meets Deep Convolutional Neural Networks?" (Lagani et al., ICIAP, [被引 91 次](https://falchi.isti.cnr.it/Draft/2019-ICIAP-HLMSD.pdf))
-
-> **优点**: 标签需求少(只有深层需要)、前端可在线学习、可解释性比纯 Backprop 好。
-> **代价**: 怎么切层、怎么协调两种规则,需要调参。
-
----
-
-### 路线 E:脉冲网络里的 STDP + 代理梯度
-
-这是和\*\*脉冲神经网络(SNN)\*\*结合的一条线,在上一篇报告第三章也提过。
-
-**STDP (Spike-Timing-Dependent Plasticity)** 是 Hebbian 的"时间精细版":
-
-- pre 神经元在 post 之前几毫秒放电 → 加强(因果关系)
-- pre 在 post 之后放电 → 减弱
-
-$$\Delta w = \begin{cases} A^+ e^{-\Delta t/\tau} &amp; \Delta t &gt; 0 \text{ (pre 先于 post)} \ -A^- e^{\Delta t/\tau} &amp; \Delta t &lt; 0 \text{ (pre 后于 post)} \end{cases}$$
-
-**问题**: STDP 的脉冲是离散的、不可微,没法直接用 PyTorch 的 autograd 训练。
-
-**解法 —— 代理梯度 (Surrogate Gradient)**: 在前向传播时用真正的脉冲(离散),在反向传播时**用一个平滑的函数"假装"它是可微的**,骗过 autograd。
-
-**代表工作**:
-
-- **SSTDP** (F. Liu et al., 2021, [Frontiers in Neuroscience, 被引 101 次](https://pmc.ncbi.nlm.nih.gov/articles/PMC8603828/)):显式桥接 STDP 和反向传播式监督学习
-- **SpikingJelly** 框架的 [STDP 教程](https://spikingjelly.readthedocs.io/zh-cn/latest/tutorials/en/stdp.html)
-- Sandia 国家实验室报告: [Combining STDP with Deep Learning](https://www.osti.gov/servlets/purl/1902866)
-
----
-
-## 二、Hebbian vs Backprop:实证对比
-
-这部分来自一篇少有的"硬碰硬"实验对比论文:
-
-**"Is Bio-Inspired Learning Better than Backprop?"** (Gupta et al., 2022, [arXiv:2212.04614](https://arxiv.org/pdf/2212.04614), 被引 16 次)
-
-
-| 维度             | Hebbian          | Backpropagation      |
-| -------------- | ---------------- | -------------------- |
-| **生物合理性**      | ✅ 高(局部突触可塑性)     | ❌ 低(需对称权重传输、全局误差)    |
-| **学习速度**(某些设置) | 快,约 **5 epochs** | 慢,约 **\~100 epochs** |
-| **可解释性**       | 更透明              | 更黑箱                  |
-| **大规模深层性能**    | 较弱               | **SOTA**             |
-| **对标签的依赖**     | 可无监督             | 需要标签                 |
-| **核心短板**       | 深层信用分配           | 生物不 plausible        |
-
-
-补充:2025 年 [Nimmo et al. 的研究](https://www.sciencedirect.com/science/article/pii/S0893608025005088)([arXiv:2501.17266](https://arxiv.org/html/2501.17266v1))进一步指出,Hebbian 在\*\*可解释性和可说明性(explainability)\*\*上优于 Backprop,这也是它在医疗、边缘场景里被重新看好的原因。
-
-> **一句话**: Hebbian 不是要"取代"Backprop,而是**在某些场景(少标签、要可解释、要在线学习、要上神经形态硬件)里补上 Backprop 的短板**。
-
----
-
-## 三、算法变体速查表
-
-
-| 名称               | 公式核心                  | 解决了什么       | 现代地位             |
-| ---------------- | --------------------- | ----------- | ---------------- |
-| **原始 Hebbian**   | $\eta x y$           | 学习的起点       | 仅教学用             |
-| **Oja**          | $\eta y(x-wy)$       | 爆炸 → 等价 PCA | NeurIPS 2025 仍在用 |
-| **BCM**          | $\eta y(y-\theta)x$ | 选择性、稳态      | 感知学习             |
-| **STDP**         | 时序依赖 ±                | 因果、时序       | SNN 核心           |
-| **SoftHebb**     | 概率软化                  | 稳定性         | FastHebb 的基线     |
-| **FastHebb**     | 工程加速                  | 速度(70×)     | ImageNet 级       |
-| **Three-Factor** | $xyM$                 | 全局目标        | 理论最被看好           |
-
-
----
-
-## 四、可用代码实现(均已核实存在)
-
-按"从入门到进阶"排序:
-
-
-| 仓库                                                                                      | 用途                                                    | 适合谁     |
-| --------------------------------------------------------------------------------------- | ----------------------------------------------------- | ------- |
-| [ThomasMiconi/HebbianCNNPyTorch](https://github.com/ThomasMiconi/HebbianCNNPyTorch)     | 多层 CNN 的 Hebbian **教学示范**                             | 第一次上手   |
-| [Einlar/biopytorch](https://github.com/Einlar/biopytorch)                               | 提供 `BioLinear` / `BioConv2d` **即插即用层**,镜像 `nn.Linear` | 想塞进现有架构 |
-| [julestalloen/pytorch-hebbian](https://github.com/julestalloen/pytorch-hebbian)         | 灵活框架,带 `HebbianTrainer`,每层可配不同规则                      | 做实验     |
-| [GabrieleLagani/HebbianLearning](https://github.com/GabrieleLagani/HebbianLearning)     | 深度 CNN,**Hebbian+Backprop 混合**,CIFAR-10               | 研究复现    |
-| [aimh-lab/hebbian-learning-cnn](https://github.com/aimh-lab/hebbian-learning-cnn)       | Lagani 仓库的镜像/分支,带对比实验                                 | 研究复现    |
-| [SpikingJelly](https://spikingjelly.readthedocs.io/zh-cn/latest/tutorials/en/stdp.html) | SNN + STDP 完整教程(PyTorch)                              | 脉冲网络方向  |
-
-
-**入门建议**: 从 `ThomasMiconi/HebbianCNNPyTorch` 开始读代码(几十行就能看懂一层 Hebbian 怎么写),然后用 `biopytorch` 在自己的小网络里替换一层试效果。
-
----
-
-## 五、关键论文清单(可核实)
-
-**综述/对比类**:
-
-1. Gupta et al. (2022). *Is Bio-Inspired Learning Better than Backprop?* [arXiv:2212.04614](https://arxiv.org/pdf/2212.04614)
-2. Nimmo et al. (2025). *Advancing the Biological Plausibility and Efficacy of Hebbian Learning…* [ScienceDirect](https://www.sciencedirect.com/science/article/pii/S0893608025005088) / [arXiv:2501.17266](https://arxiv.org/html/2501.17266v1)
-
-**方法突破类**:
-3. Lagani et al. (2024). *Scalable bio-inspired training of DNNs with FastHebb.* [Neurocomputing, DOI:10.1016/j.neucom.2024.127867](https://www.sciencedirect.com/science/article/pii/S0925231224006386) / [arXiv:2207.03172](https://arxiv.org/abs/2207.03172)
-4. Daruwalla (2024). *Information bottleneck-based Hebbian learning rule.* [Frontiers in Comp. Neuro.](https://www.frontiersin.org/journals/computational-neuroscience/articles/10.3389/fncom.2024.1240348/full)
-5. Ravichandran et al. (2025). *Unsupervised representation learning with Hebbian synaptic and structural plasticity.* [ScienceDirect](https://www.sciencedirect.com/science/article/pii/S0925231225001122) (被引 22)
-6. (NeurIPS 2025) *Low-Dimensional Structural Projection for Unsupervised Learning.* [arXiv:2510.14810](https://arxiv.org/html/2510.14810v1)
-7. Liu et al. (2021). *SSTDP: Supervised Spike Timing Dependent Plasticity.* [Frontiers in Neuroscience](https://pmc.ncbi.nlm.nih.gov/articles/PMC8603828/) (被引 101)
-
-**经典/参考**:
-8. *Hebbian Learning Meets Deep CNNs?* Lagani et al. (ICIAP, [被引 91](https://falchi.isti.cnr.it/Draft/2019-ICIAP-HLMSD.pdf))
-9. KTH 皇家理工硕士论文: [Comparison of Hebbian Learning and Backpropagation](https://kth.diva-portal.org/smash/get/diva2:1795928/FULLTEXT01.pdf)
-10. Scholarpedia: [Oja learning rule](http://www.scholarpedia.org/article/Oja_learning_rule)
-
----
-
-## 六、学习路径建议
-
-**第 1 步(1 天)**: 概念
-
-- 读懂原始 Hebbian、Oja、BCM 三者的公式差异(本篇路线 A-C 的公式部分)
-- 推荐: [Julien Vitay 的讲义](https://julien-vitay.net/lecturenotes-neurocomputing/4-neurocomputing/5-Hebbian.html)
-
-**第 2 步(2-3 天)**: 跑代码
-
-- 克隆 [ThomasMiconi/HebbianCNNPyTorch](https://github.com/ThomasMiconi/HebbianCNNPyTorch),在 MNIST 上跑通
-- 改一个超参数(学习率、归一化),看权重会不会爆炸
-
-**第 3 步(1 周)**: 复现
-
-- 用 [biopytorch](https://github.com/Einlar/biopytorch) 在一个小 CNN 里把第一层换成 Hebbian
-- 对比:纯 Backprop vs Hebbian+Backprop 混合,在 CIFAR-10 上的精度和收敛速度
-
-**第 4 步(深入)**: 读论文
-
-- 先读 Gupta 2022(对比清晰) → 再读 FastHebb(工程优化怎么做的) → 再读三因子规则(理论精髓)
-
----
-
-## 七、一句话总结
-
-Hebbian 学习的"现代实现"围绕一个核心矛盾展开:**生物合理性 vs 工程性能**。五条路线分别从
-
-- **速度** (FastHebb 的 70× 加速)
-- **全局指导** (三因子规则 $xyM$)
-- **稳定性** (Oja/BCM 的归一化和滑动阈值)
-- **混合** (Hebbian 前端 + Backprop 后端)
-- **脉冲硬件** (STDP + 代理梯度)
-
-五个角度,把这个 1949 年的老规则,第一次推到了 ImageNet 级别和神经形态硬件上。它不会取代 Backprop,但在**少标签、要可解释、要在线学习、要低功耗**的场景里,正在成为正经的工程选项。
-
----
-
-## 诚实声明
-
-- 本篇所有 **论文** 均带 arXiv 编号或 DOI,可自行核实。
-- 所有 **GitHub 仓库** 均为搜索时确认存在的真实仓库(stars 数会随时间变化,故未写死数字,需要时可直接点进仓库看最新值)。
-- "70× 加速""5 epochs vs 100 epochs""被引 101 次"等**具体数字**来自对应论文的搜索摘要,引用前建议点开原文确认上下文(这些数字往往有特定前提条件)。
-- 本篇是上一篇概览报告的**深入补丁**,概念上和上一篇一致,但资源更可靠。
-
----
-
-**报告编制**: AI 调研助手
-**最后更新**: 2026-07-26
-**版本**: 1.0
+具体架构摘录见[架构主文档](/Users/lc/Desktop/neu-risk/Hebbian学习-网络架构完整调研报告.md)，协议字段见[复现记录规范](/Users/lc/Desktop/neu-risk/Hebbian学习-网络架构详细调研.md)。

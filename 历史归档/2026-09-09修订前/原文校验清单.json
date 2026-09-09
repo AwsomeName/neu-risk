@@ -1,0 +1,50 @@
+[
+  {
+    "path": "调研报告.md",
+    "sha256": "1eca9e84eef9d5ad8f9ddacff671f52985a9ad121b703639c0b294b8dcf92516"
+  },
+  {
+    "path": "Hebbian学习-网络架构完整调研报告.md",
+    "sha256": "ecc48a3d4a558b28b2f4d2735a6c717ba8ceea73cffed550cea783377fedd5ac"
+  },
+  {
+    "path": "Hebbian学习-学习规则vs网络架构-完整解析.md",
+    "sha256": "3639585edffbc07af8f476aeed36fa5071efe3c6c62548b06ea363e498313b1a"
+  },
+  {
+    "path": "Hebbian学习-网络架构补充调研.md",
+    "sha256": "0b361ce518d0c691ef1fb991596cce7319b6e64dab9a9090a44f19889fb37c1d"
+  },
+  {
+    "path": "【已发布】生物神经网络与人工神经网络交叉研究调研报告.md",
+    "sha256": "73aabf32be98c005cfd486cf4f778c6b5d991070408fda4923adb44b9440f287"
+  },
+  {
+    "path": "Hebbian学习的现代实现-专题调研.md",
+    "sha256": "0c3ed05e4d083cc442d7a7db3502d8ee1db41beeda2ed139a41de3b38c516d71"
+  },
+  {
+    "path": "Hebbian学习-网络架构详细调研.md",
+    "sha256": "0f2d2801ce0da7cb2c84d25f7e30ce8e9783377ad27401f9b930ce89d5649f62"
+  },
+  {
+    "path": "神经网络/0731-Hebbian学习理论与实验验证-v2.0.md",
+    "sha256": "a6b54c5ef2f09ddf77839b3ea0302175c75ab0b01a6947da6ef21b0f530bacf8"
+  },
+  {
+    "path": "神经网络/0728-神经生物学阅读笔记.md",
+    "sha256": "db2fa10b2c39809a1108530bd4c11bf46105090c3b034400150b15c9dc1343f6"
+  },
+  {
+    "path": "神经网络/0728-大脑是如何学习的-神经生物学给AI的启示.md",
+    "sha256": "2b58be008ce9675759950466fa5b0869c5cd57d810da22e8c38ec3cf5dbb7a38"
+  },
+  {
+    "path": "神经网络/0806-Hebbian现象vsHebbian学习-核心区分.md",
+    "sha256": "1a5da87e3be1b25fe24691dddbbc061f6c28051fe7ab3482d4817f558364f201"
+  },
+  {
+    "path": "神经网络/0731-Hebbian学习理论与实验验证.md",
+    "sha256": "beb2c7bf19d9e87da36e093324570b01904f82c70b9d708fb757b7746bd99ff3"
+  }
+]
